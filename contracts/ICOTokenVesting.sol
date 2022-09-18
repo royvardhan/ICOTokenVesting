@@ -11,6 +11,9 @@ contract ICOTokenVesting is ERC20 {
     address public owner;
     uint public maxSupply;
     uint public pricePerToken = 1 * 1e18; // $1 per token;
+    uint public currentDate;
+    uint public unlockInterval = 30 days;
+    uint perUnlockPercentage = 10;
 
     AggregatorV3Interface internal priceFeed;
 
@@ -19,13 +22,11 @@ contract ICOTokenVesting is ERC20 {
         owner = msg.sender;
         maxSupply = 100000 * (1e18);
         priceFeed = AggregatorV3Interface(_ethusdPriceFeedAddress);
+        currentDate = block.timestamp;
     }
 
     struct VestingSchedule {
         address holder;
-        uint balanceRemaining; // this can be said as totalBalance
-        uint perUnlockPercentage; // Allowed unlock per month
-        uint durationPerUnlock; // interval between per unlock
         uint nextUnlockDate; // this will update every unlock
         bool vestingInitiated; // is vesting currently ongoing
     }
@@ -44,14 +45,14 @@ contract ICOTokenVesting is ERC20 {
     
     // This gets you the ETH price
 
-    function getEthPrice() public returns(iint){
-        (,int256,,,)  = priceFeed.latestRoundData();
+    function getEthPrice() public view returns(uint){
+        (,int256 price,,,)  = priceFeed.latestRoundData();
         return uint(price * 1e10);
     }
 
     // This will convert any amount of ETH into its USD value
 
-    function getConversionRate(uint _ethAmount) public returns(uint) {
+    function getConversionRate(uint _ethAmount) public view returns(uint) {
         uint ethPrice = getEthPrice();
         uint ethAmountInUsd = (ethPrice * _ethAmount) / 1e18;
         return ethAmountInUsd;
@@ -64,9 +65,12 @@ contract ICOTokenVesting is ERC20 {
         return saleOngoing;
     }
 
-    function buyToken(uint _amount) public isSaleOn  {
+    function buyToken(uint _amount) public payable isSaleOn  {
         require(getConversionRate(msg.value) >= _amount, "Not Enough ETH sent");
-        // more logic to come here
+        addressVestingSchedule[msg.sender] = VestingSchedule(msg.sender,currentDate + unlockInterval, true );
+        _balances[msg.sender] += _amount;
+        
+        
     }
 
 
