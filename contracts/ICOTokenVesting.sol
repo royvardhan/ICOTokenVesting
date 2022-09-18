@@ -13,14 +13,15 @@ contract ICOTokenVesting is ERC20 {
     uint public pricePerToken = 1 * 1e18; // $1 per token;
     uint public currentDate;
     uint public unlockInterval = 30 days;
-    uint perUnlockPercentage = 10;
+    uint perUnlockPercentage = 20;
+    uint public currentSupply;
 
     AggregatorV3Interface internal priceFeed;
 
-    constructor(string memory _name, string memory _symbol, address _ethusdPriceFeedAddress) ERC20(_name, _symbol) {
+    constructor(string memory _name, string memory _symbol, address _ethusdPriceFeedAddress, uint _maxSupply) ERC20(_name, _symbol) {
         _mint(msg.sender, 100 * (1e18));
         owner = msg.sender;
-        maxSupply = 100000 * (1e18);
+        maxSupply = _maxSupply * (1e18);
         priceFeed = AggregatorV3Interface(_ethusdPriceFeedAddress);
         currentDate = block.timestamp;
     }
@@ -42,6 +43,10 @@ contract ICOTokenVesting is ERC20 {
         require(saleOngoing == true, "Sale isn't running");
         _;
     }
+
+    modifier isUnlockTime() {
+        
+    }
     
     // This gets you the ETH price
 
@@ -59,7 +64,6 @@ contract ICOTokenVesting is ERC20 {
     }
 
 
-
     function toggleSale(bool _bool) public onlyOwner returns(bool) {
         saleOngoing = _bool;
         return saleOngoing;
@@ -68,11 +72,12 @@ contract ICOTokenVesting is ERC20 {
     function buyToken(uint _amount) public payable isSaleOn  {
         require(getConversionRate(msg.value) >= _amount, "Not Enough ETH sent");
         addressVestingSchedule[msg.sender] = VestingSchedule(msg.sender,currentDate + unlockInterval, true );
-        _balances[msg.sender] += _amount;
-        
-        
+        currentSupply += _amount;
     }
 
+    function userWithdrawal(uint _amount) public payable {
+        
+    }
 
 
 }
