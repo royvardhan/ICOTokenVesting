@@ -28,11 +28,18 @@ contract ICOTokenVesting is ERC20 {
 
     struct VestingSchedule {
         address holder;
+        uint prevUnlockDate;
         uint nextUnlockDate; // this will update every unlock
         bool vestingInitiated; // is vesting currently ongoing
     }
 
     mapping(address => VestingSchedule) public addressVestingSchedule;
+
+    modifier ableToUnlock() {
+        require(block.timestamp > addressVestingSchedule[msg.sender].nextUnlockDate, "You cannot withdraw before the next unlock");
+        addressVestingSchedule[msg.sender].prevUnlockDate = addressVestingSchedule[msg.sender].nextUnlockDate;
+        addressVestingSchedule[msg.sender].nextUnlockDate += unlockInterval;
+    }
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only the owner can call this function");
@@ -44,9 +51,7 @@ contract ICOTokenVesting is ERC20 {
         _;
     }
 
-    modifier isUnlockTime() {
-        
-    }
+    
     
     // This gets you the ETH price
 
@@ -70,6 +75,10 @@ contract ICOTokenVesting is ERC20 {
     }
 
     function buyToken(uint _amount) public payable isSaleOn  {
+        if (currentSupply == (maxSupply - 1) ){
+
+        }
+        require (currentSupply < maxSupply, "Maximum supply reached");
         require(getConversionRate(msg.value) >= _amount, "Not Enough ETH sent");
         addressVestingSchedule[msg.sender] = VestingSchedule(msg.sender,currentDate + unlockInterval, true );
         currentSupply += _amount;
