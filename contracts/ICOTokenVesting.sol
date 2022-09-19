@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: Null
+// SPDX-License-Identifier: UNLICENSED
 
 pragma solidity ^0.8.4;
 
@@ -31,6 +31,8 @@ contract ICOTokenVesting is ERC20 {
         uint prevUnlockDate;
         uint nextUnlockDate; // this will update every unlock
         bool vestingInitiated; // is vesting currently ongoing
+        uint tokensBought;
+        uint tokenBalance;
     }
 
     mapping(address => VestingSchedule) public addressVestingSchedule;
@@ -51,8 +53,6 @@ contract ICOTokenVesting is ERC20 {
         require(saleOngoing == true, "Sale isn't running");
         _;
     }
-
-    
     
     // This gets you the ETH price
 
@@ -81,12 +81,16 @@ contract ICOTokenVesting is ERC20 {
         }
         require (currentSupply < maxSupply, "Maximum supply reached");
         require(getConversionRate(msg.value) >= _amount, "Not Enough ETH sent");
-        addressVestingSchedule[msg.sender] = VestingSchedule(msg.sender,currentDate + unlockInterval, true );
+        addressVestingSchedule[msg.sender] = VestingSchedule(msg.sender, 0, currentDate + unlockInterval, true, _amount, _amount );
         currentSupply += _amount;
     }
 
-    function userWithdrawal(uint _amount) public payable {
-        
+    function userWithdrawal() public ableToUnlock payable {
+        uint tokenBought = addressVestingSchedule[msg.sender].tokensBought;
+        uint ableToClaim = tokenBought / 100 * perUnlockPercentage;
+        require(addressVestingSchedule[msg.sender].tokenBalance >= ableToClaim, "You have already unlocked tokens");
+        addressVestingSchedule[msg.sender].tokenBalance -= ableToClaim;
+        _mint(msg.sender, ableToClaim);
     }
 
 
