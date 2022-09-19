@@ -30,6 +30,7 @@ contract ICOTokenVesting is ERC20 {
         priceFeed = AggregatorV3Interface(_ethusdPriceFeedAddress);
         currentDate = block.timestamp;
         nextUnlockDate = currentDate + unlockInterval;
+        _mint(msg.sender, maxSupply / 100 * 10); // 10% of the tokens to be held by the team
         emit SaleToggled(true);
     }
 
