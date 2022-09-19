@@ -39,6 +39,7 @@ contract ICOTokenVesting is ERC20 {
         require(block.timestamp > addressVestingSchedule[msg.sender].nextUnlockDate, "You cannot withdraw before the next unlock");
         addressVestingSchedule[msg.sender].prevUnlockDate = addressVestingSchedule[msg.sender].nextUnlockDate;
         addressVestingSchedule[msg.sender].nextUnlockDate += unlockInterval;
+        _;
     }
 
     modifier onlyOwner() {
