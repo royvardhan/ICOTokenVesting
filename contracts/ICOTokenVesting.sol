@@ -7,40 +7,40 @@ import "./utils/AggregatorV3Interface.sol";
 
 contract ICOTokenVesting is ERC20 {
 
-    bool public saleOngoing;
-    address public owner;
     uint public maxSupply;
-    uint public pricePerToken = 1 * 1e18; // $1 per token;
-    uint public currentDate;
-    uint public unlockInterval = 30 days;
-    uint perUnlockPercentage = 20;
-    uint public currentSupply;
+    uint public constant pricePerToken = 1 * 1e18; // $1 per token;
+    uint private constant unlockInterval = 30 days;
+    uint128 private constant perUnlockPercentage = 20;
+    uint private currentDate;
+    uint private prevUnlockDate;
+    uint private nextUnlockDate; 
+    uint private currentSupply;
+    bool public saleOngoing;
+    address private owner;
 
     AggregatorV3Interface internal priceFeed;
 
     constructor(string memory _name, string memory _symbol, address _ethusdPriceFeedAddress, uint _maxSupply) ERC20(_name, _symbol) {
-        _mint(msg.sender, 100 * (1e18));
         owner = msg.sender;
         maxSupply = _maxSupply * (1e18);
         priceFeed = AggregatorV3Interface(_ethusdPriceFeedAddress);
         currentDate = block.timestamp;
+        nextUnlockDate = currentDate + unlockInterval;
     }
 
     struct VestingSchedule {
-        address holder;
-        uint prevUnlockDate;
-        uint nextUnlockDate; // this will update every unlock
-        bool vestingInitiated; // is vesting currently ongoing
-        uint tokensBought;
-        uint tokenBalance;
+        uint128 tokensBought;
+        uint128 tokenBalance;
     }
 
     mapping(address => VestingSchedule) public addressVestingSchedule;
 
     modifier ableToUnlock() {
-        require(block.timestamp > addressVestingSchedule[msg.sender].nextUnlockDate, "You cannot withdraw before the next unlock");
-        addressVestingSchedule[msg.sender].prevUnlockDate = addressVestingSchedule[msg.sender].nextUnlockDate;
-        addressVestingSchedule[msg.sender].nextUnlockDate += unlockInterval;
+        require(block.timestamp > nextUnlockDate, "You cannot withdraw before the next unlock");
+        if (prevUnlockDate != nextUnlockDate) {
+        prevUnlockDate = nextUnlockDate;
+        nextUnlockDate += unlockInterval;
+        }
         _;
     }
 
@@ -81,13 +81,14 @@ contract ICOTokenVesting is ERC20 {
         }
         require (currentSupply < maxSupply, "Maximum supply reached");
         require(getConversionRate(msg.value) >= _amount, "Not Enough ETH sent");
-        addressVestingSchedule[msg.sender] = VestingSchedule(msg.sender, 0, currentDate + unlockInterval, true, _amount, _amount );
+        addressVestingSchedule[msg.sender] = VestingSchedule(_amount, _amount );
         currentSupply += _amount;
     }
 
     function userWithdrawal() public ableToUnlock payable {
-        uint tokenBought = addressVestingSchedule[msg.sender].tokensBought;
-        uint ableToClaim = tokenBought / 100 * perUnlockPercentage;
+        require(addressVestingSchedule[msg.sender].tokensBought > 0, "You didn't participate in the sale");
+        uint128 tokenBought = addressVestingSchedule[msg.sender].tokensBought;
+        uint128 ableToClaim = tokenBought / 100 * perUnlockPercentage;
         require(addressVestingSchedule[msg.sender].tokenBalance >= ableToClaim, "You have already unlocked tokens");
         addressVestingSchedule[msg.sender].tokenBalance -= ableToClaim;
         _mint(msg.sender, ableToClaim);
