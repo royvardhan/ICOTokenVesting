@@ -7,14 +7,18 @@ import "./utils/AggregatorV3Interface.sol";
 
 contract ICOTokenVesting is ERC20 {
 
-    uint public maxSupply;
+    event SaleToggled(bool _bool);
+    event lastBuy(address indexed _address, uint128 _amount, uint256 _ethSpent);
+    event lastClaim(address indexed _address, uint128 _amount);
+
     uint public constant pricePerToken = 1 * 1e18; // $1 per token;
     uint private constant unlockInterval = 30 days;
-    uint128 private constant perUnlockPercentage = 20;
     uint private currentDate;
     uint private prevUnlockDate;
     uint private nextUnlockDate; 
-    uint private currentSupply;
+    uint public maxSupply;
+    uint public currentSupply;
+    uint128 private constant perUnlockPercentage = 20;
     bool public saleOngoing;
     address private owner;
 
@@ -26,11 +30,12 @@ contract ICOTokenVesting is ERC20 {
         priceFeed = AggregatorV3Interface(_ethusdPriceFeedAddress);
         currentDate = block.timestamp;
         nextUnlockDate = currentDate + unlockInterval;
+        emit SaleToggled(true);
     }
 
     struct VestingSchedule {
         uint128 tokensBought;
-        uint128 tokenBalance;
+        uint128 currentBalance;
     }
 
     mapping(address => VestingSchedule) public addressVestingSchedule;
@@ -50,7 +55,7 @@ contract ICOTokenVesting is ERC20 {
     }
 
     modifier isSaleOn() {
-        require(saleOngoing == true, "Sale isn't running");
+        require(saleOngoing == true, "Sale is over");
         _;
     }
     
@@ -75,23 +80,39 @@ contract ICOTokenVesting is ERC20 {
         return saleOngoing;
     }
 
-    function buyToken(uint _amount) public payable isSaleOn  {
-        if (currentSupply == (maxSupply - 1) ){
-
+    function buyToken(uint128 _amount) public payable isSaleOn  {
+        if ((currentSupply + _amount) > maxSupply){
+            revert();
         }
         require (currentSupply < maxSupply, "Maximum supply reached");
         require(getConversionRate(msg.value) >= _amount, "Not Enough ETH sent");
         addressVestingSchedule[msg.sender] = VestingSchedule(_amount, _amount );
         currentSupply += _amount;
+        if(currentSupply == (maxSupply - 1)) {
+            saleOngoing = false;
+        }
+        emit lastBuy(msg.sender, _amount, msg.value);
     }
 
     function userWithdrawal() public ableToUnlock payable {
-        require(addressVestingSchedule[msg.sender].tokensBought > 0, "You didn't participate in the sale");
+        require(addressVestingSchedule[msg.sender].currentBalance > 0, "You dont have any tokens");
         uint128 tokenBought = addressVestingSchedule[msg.sender].tokensBought;
         uint128 ableToClaim = tokenBought / 100 * perUnlockPercentage;
-        require(addressVestingSchedule[msg.sender].tokenBalance >= ableToClaim, "You have already unlocked tokens");
-        addressVestingSchedule[msg.sender].tokenBalance -= ableToClaim;
+        require(addressVestingSchedule[msg.sender].currentBalance >= ableToClaim, "You have already unlocked tokens");
+        addressVestingSchedule[msg.sender].currentBalance -= ableToClaim;
         _mint(msg.sender, ableToClaim);
+        emit lastClaim(msg.sender, ableToClaim);
+    }
+
+
+    //////////////// Helper Functions ////////////////
+
+    function getBalance() public view returns(uint128) {
+        return addressVestingSchedule[msg.sender].currentBalance;
+    }
+
+    function getBalanceByAddress(address _address) public view returns(uint128) {
+        return addressVestingSchedule[_address].currentBalance;
     }
 
 
