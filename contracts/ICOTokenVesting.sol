@@ -20,17 +20,20 @@ contract ICOTokenVesting is ERC20 {
     uint public currentSupply;
     uint128 private constant perUnlockPercentage = 20;
     bool public saleOngoing;
-    address private owner;
+    address public owner;
 
     AggregatorV3Interface internal priceFeed;
 
     constructor(string memory _name, string memory _symbol, address _ethusdPriceFeedAddress, uint _maxSupply) ERC20(_name, _symbol) {
         owner = msg.sender;
         maxSupply = _maxSupply * (1e18);
+        uint teamAllocation = maxSupply / 100 * 10;
         priceFeed = AggregatorV3Interface(_ethusdPriceFeedAddress);
         currentDate = block.timestamp;
         nextUnlockDate = currentDate + unlockInterval;
-        _mint(msg.sender, maxSupply / 100 * 10); // 10% of the tokens to be held by the team
+        saleOngoing = true;
+        _mint(msg.sender, teamAllocation); // 10% of the tokens to be held by the team
+        currentSupply = teamAllocation;
         emit SaleToggled(true);
     }
 
@@ -81,6 +84,8 @@ contract ICOTokenVesting is ERC20 {
         return saleOngoing;
     }
 
+    
+
     function buyToken(uint128 _amount) public payable isSaleOn  {
         if ((currentSupply + _amount) > maxSupply){
             revert();
@@ -106,7 +111,7 @@ contract ICOTokenVesting is ERC20 {
     }
 
 
-    //////////////// Helper Functions ////////////////
+    //////////////// Getter Functions ////////////////
 
     function getBalance() public view returns(uint128) {
         return addressVestingSchedule[msg.sender].currentBalance;
@@ -114,6 +119,10 @@ contract ICOTokenVesting is ERC20 {
 
     function getBalanceByAddress(address _address) public view returns(uint128) {
         return addressVestingSchedule[_address].currentBalance;
+    }
+
+    function unlockDate() public view returns (uint) {
+        return nextUnlockDate;
     }
 
 
