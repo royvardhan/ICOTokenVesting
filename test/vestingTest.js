@@ -35,7 +35,7 @@ describe("ICOTokenVestin Tests", function () {
     assert.equal(formatEth > 1300, true);
   });
 
-  it.only("Should verify the ETH conversion rate", async function () {
+  it("Should verify the ETH conversion rate", async function () {
     const ethAmount = await vestingContract.getEthPrice();
     const formatEth = await ethers.utils.formatEther(ethAmount);
     console.log(`Current Eth Price is $${Math.trunc(formatEth)}`);
@@ -57,7 +57,12 @@ describe("ICOTokenVestin Tests", function () {
     });
     const balance = await vestingContract.getBalance();
     console.log(`Current balance is ${balance}`);
-    assert.equal(tokenAmount, balance);
+    const parsedTokenAmount = await ethers.utils.parseUnits(
+      tokenAmount.toString(),
+      18
+    );
+    console.log(`Parsed Token Amount is ${parsedTokenAmount}`);
+    expect(parsedTokenAmount).to.eql(balance);
   });
 
   it("Unlock date must be in the future i.e, after 30 days of contract deployment", async function () {
@@ -68,8 +73,8 @@ describe("ICOTokenVestin Tests", function () {
     expect(unixTimestamp).to.lt(res);
   });
 
-  it("Cannot buy more than Max Supply", async function () {
-    const tokenAmount = 102;
+  it.only("Cannot buy more than Max Supply", async function () {
+    const tokenAmount = 90;
     const getEthToUSD = await vestingContract.getConversionRate(1);
     const ethToSpend = (1 / getEthToUSD) * tokenAmount;
     console.log(

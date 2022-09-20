@@ -83,18 +83,20 @@ contract ICOTokenVesting is ERC20 {
         saleOngoing = _bool;
         return saleOngoing;
     }
+    
 
     
 
     function buyToken(uint128 _amount) public payable isSaleOn  {
-        if ((currentSupply + _amount) > maxSupply){
+        uint128 amountWithDecimals = _amount * 1e18;
+        if ((currentSupply + amountWithDecimals) > maxSupply){
             revert();
         }
         require (currentSupply < maxSupply, "Maximum supply reached");
-        require(getConversionRate(msg.value) >= _amount, "Not Enough ETH sent");
-        addressVestingSchedule[msg.sender] = VestingSchedule(_amount, _amount );
-        currentSupply += _amount;
-        if(currentSupply == (maxSupply - 1)) {
+        require(getConversionRate(msg.value) >= amountWithDecimals, "Not Enough ETH sent");
+        addressVestingSchedule[msg.sender] = VestingSchedule(amountWithDecimals, amountWithDecimals );
+        currentSupply += amountWithDecimals;
+        if((currentSupply == (maxSupply - 1)) || currentSupply == maxSupply) {
             saleOngoing = false;
         }
         emit lastBuy(msg.sender, _amount, msg.value);
